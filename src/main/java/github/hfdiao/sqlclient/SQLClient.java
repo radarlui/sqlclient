@@ -13,9 +13,11 @@ import java.util.Map;
 import java.util.Properties;
 
 public abstract class SQLClient {
-    abstract String makeConnectUrl(String host, int port, String database);
-
     public abstract void loadDriver() throws ClassNotFoundException;
+
+    public abstract boolean driverLoaded();
+    
+    abstract String makeConnectUrl(String host, int port, String database);
 
     public Connection getConnection(String host, int port, String database,
             String username, String password) throws SQLException {
