@@ -12,8 +12,8 @@ usage
 
 * connect mysql database:
 
-      java -cp .:libreadline-java.jar:sqlclient.jar:mysql-connector-$version.jar -jar sqlclient.jar
+      java -cp .:jline.jar:mysql-connector.jar:sqlclient.jar github.hfdiao.sqlclient.SQLClientConsole
  
 * connect oracle database:
 
-      java -cp .:libreadline-java.jar:sqlclient.jar:ojdbc-$version.jar -jar sqlclient.jar
+      java -cp .:jline.jar:ojdbc.jar:sqlclient.jar github.hfdiao.sqlclient.SQLClientConsole
