@@ -8,8 +8,7 @@ import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
 
-import org.gnu.readline.Readline;
-import org.gnu.readline.ReadlineLibrary;
+import jline.console.ConsoleReader;
 
 /**
  * @author dhf
@@ -19,7 +18,10 @@ public class SQLClientConsole {
             EOFException, UnsupportedEncodingException, IOException,
             SQLException {
         showHelp();
-        String[] splits = Readline.readline("connect>").split(" ");
+
+        ConsoleReader reader = new ConsoleReader();
+        reader.setHistoryEnabled(true);
+        String[] splits = reader.readLine("connect>").split(" ");
         if (splits.length != 6) {
             showHelp();
             return;
@@ -36,13 +38,10 @@ public class SQLClientConsole {
         SQLClient client = makeClient(dbtype);
         Connection conn = client.getConnection(host, port, database, username,
                 password);
-
-        int maxHistory = 1000;
-        CmdCompleter completer = new CmdCompleter(maxHistory);
-        Readline.setCompleter(completer);
         try {
+            reader.getHistory().clear();
             while (true) {
-                String line = Readline.readline("sql>");
+                String line = reader.readLine("sql>");
                 if ("quit".equalsIgnoreCase(line)
                         || "bye".equalsIgnoreCase(line)
                         || "exit".equalsIgnoreCase(line)) {
@@ -50,7 +49,6 @@ public class SQLClientConsole {
                     break;
                 }
                 try {
-                    completer.addHistory(line);
                     Object result = client.doSql(conn, line);
                     if (result instanceof Integer) {
                         System.out.println("affected lines: " + result);
@@ -73,33 +71,6 @@ public class SQLClientConsole {
         } finally {
             closeConnection(conn);
         }
-    }
-
-    static {
-        if (!loadReadline()) {
-            System.out
-                    .println("can't find libreadline, use java default sysin");
-            Readline.load(ReadlineLibrary.PureJava);
-        }
-    }
-
-    private static boolean loadReadline() {
-        ReadlineLibrary[] libs = new ReadlineLibrary[] {
-            ReadlineLibrary.GnuReadline, ReadlineLibrary.Editline,
-            ReadlineLibrary.Getline
-        };
-        for (ReadlineLibrary l: libs) {
-            try {
-                Readline.load(l);
-                Runtime.getRuntime().addShutdownHook(new Thread() {
-                    public void run() {
-                        Readline.cleanup();
-                    }
-                });
-                return true;
-            } catch (Throwable t) {}
-        }
-        return false;
     }
 
     private static void showHelp() {
