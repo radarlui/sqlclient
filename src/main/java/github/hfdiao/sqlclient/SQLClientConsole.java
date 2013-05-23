@@ -2,11 +2,15 @@ package github.hfdiao.sqlclient;
 
 import java.io.EOFException;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Properties;
 
 import jline.console.ConsoleReader;
 
@@ -74,24 +78,63 @@ public class SQLClientConsole {
     }
 
     private static void showHelp() {
+        System.out.println("usage:");
+        System.out.println("\t dbtype host port database username password");
+        System.out.println("example:");
         System.out
-                .println("[Usage]:\tmysql/oracle host port database username password");
-        System.out.println("Example:");
-        System.out
-                .println("\t\tmysql 192.168.201.78 9538 mydatabase myusername mypassword");
+                .println("\t mysql 127.0.0.1 3306 mydatabase myusername mypassword");
+        System.out.println("dbtypes:");
+        StringBuilder dbtypes = new StringBuilder();
+        for (String dbtype: CLIENT_MAP.keySet()) {
+            if (dbtypes.length() != 0) {
+                dbtypes.append(", ");
+            }
+            dbtypes.append(dbtype);
+        }
+
+        System.out.println("\t " + dbtypes);
     }
 
-    private static SQLClient makeClient(String type)
-            throws ClassNotFoundException {
-        SQLClient client = null;
-        if ("mysql".equalsIgnoreCase(type)) {
-            client = new MySQLClient();
-        } else if ("oracle".equalsIgnoreCase(type)) {
-            client = new OracleClient();
-        } else {
-            throw new IllegalArgumentException("unknow db type: " + type);
+    private static Map<String, SQLClient> loadClientMap() throws IOException,
+            InstantiationException, IllegalAccessException,
+            ClassNotFoundException {
+        InputStream in = ClassLoader
+                .getSystemResourceAsStream("sqlclients.txt");
+        Map<String, SQLClient> clientMap = new HashMap<String, SQLClient>();
+        try {
+            if (null != in) {
+                Properties p = new Properties();
+                p.load(in);
+
+                for (Entry<Object, Object> entry: p.entrySet()) {
+                    String dbtype = ((String) entry.getKey()).trim();
+                    String className = ((String) entry.getValue()).trim();
+
+                    clientMap.put(dbtype, (SQLClient) Class.forName(className)
+                            .newInstance());
+                }
+            }
+            return clientMap;
+        } finally {
+            if (null != in) {
+                in.close();
+            }
         }
-        client.loadDriver();
+    }
+
+    private static SQLClient getSQLClient(String dbtype) {
+        return CLIENT_MAP.get(dbtype);
+    }
+
+    private static SQLClient makeClient(String dbtype)
+            throws ClassNotFoundException {
+        SQLClient client = getSQLClient(dbtype);
+        if (null == client) {
+            throw new IllegalArgumentException("unknow db type: " + dbtype);
+        }
+        if (!client.driverLoaded()) {
+            client.loadDriver();
+        }
         return client;
     }
 
@@ -109,4 +152,12 @@ public class SQLClientConsole {
         }
     }
 
+    private static final Map<String, SQLClient> CLIENT_MAP;
+    static {
+        try {
+            CLIENT_MAP = loadClientMap();
+        } catch (Throwable t) {
+            throw new RuntimeException(t);
+        }
+    }
 }

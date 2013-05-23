@@ -1,0 +1,2 @@
+mysql=github.hfdiao.sqlclient.MySQLClient
+oracle=github.hfdiao.sqlclient.OracleClient
