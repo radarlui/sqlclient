@@ -16,7 +16,7 @@ public abstract class SQLClient {
     public abstract void loadDriver() throws ClassNotFoundException;
 
     public abstract boolean driverLoaded();
-    
+
     abstract String makeConnectUrl(String host, int port, String database);
 
     public Connection getConnection(String host, int port, String database,
@@ -49,7 +49,7 @@ public abstract class SQLClient {
                 return affected;
             }
         } finally {
-            if (statement != null) {
+            if (null != statement) {
                 statement.close();
             }
         }
@@ -74,7 +74,9 @@ public abstract class SQLClient {
             }
             return list;
         } finally {
-            rs.close();
+            if (null != rs) {
+                rs.close();
+            }
         }
 
     }
