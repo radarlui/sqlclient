@@ -41,7 +41,9 @@ public abstract class SQLClient {
         try {
             statement = conn.createStatement();
             if (sql.toLowerCase().startsWith("select ")
-                    || sql.toLowerCase().startsWith("show ")) {
+                    || sql.toLowerCase().startsWith("show ")
+                    || sql.toLowerCase().startsWith("desc ")
+                    || sql.toLowerCase().startsWith("describe ")) {
                 List<Map<String, Object>> query = doSelect(statement, sql);
                 return query;
             } else {
