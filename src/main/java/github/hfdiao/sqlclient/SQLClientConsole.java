@@ -44,16 +44,34 @@ public class SQLClientConsole {
                 password);
         try {
             reader.getHistory().clear();
+
+            StringBuilder buffer = new StringBuilder();
             while (true) {
-                String line = reader.readLine("sql>");
-                if ("quit".equalsIgnoreCase(line)
-                        || "bye".equalsIgnoreCase(line)
-                        || "exit".equalsIgnoreCase(line)) {
+                String line = null;
+                if (buffer.length() == 0) {
+                    line = reader.readLine("sql>");
+                } else {
+                    line = reader.readLine("   >");
+                }
+                if (null == line || "".equals(line.trim())) {
+                    continue;
+                }
+
+                buffer.append(line);
+                if (buffer.charAt(buffer.length() - 1) == '\\') {
+                    buffer.setCharAt(buffer.length() - 1, ' ');
+                    continue;
+                }
+                String sql = buffer.toString();
+                buffer.setLength(0);
+
+                if ("quit".equalsIgnoreCase(sql) || "bye".equalsIgnoreCase(sql)
+                        || "exit".equalsIgnoreCase(sql)) {
                     exit();
                     break;
                 }
                 try {
-                    Object result = client.doSql(conn, line);
+                    Object result = client.doSql(conn, sql);
                     if (result instanceof Integer) {
                         System.out.println("affected lines: " + result);
                     } else if (result instanceof List) {
@@ -68,7 +86,7 @@ public class SQLClientConsole {
                 } catch (Exception e) {
                     System.out
                             .println("execute sql fail, please check your sql statement: "
-                                    + line);
+                                    + sql);
                     e.printStackTrace();
                 }
             }
