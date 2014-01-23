@@ -1,6 +1,7 @@
 package github.hfdiao.sqlclient;
 
 import java.io.EOFException;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
@@ -11,40 +12,44 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
+import java.util.regex.Pattern;
 
 import jline.console.ConsoleReader;
+import jline.console.history.FileHistory;
 
 /**
  * @author dhf
  */
 public class SQLClientConsole {
+    private static final String HISTORY_FILE = ".sqlhistory";
+
     public static void main(String[] args) throws ClassNotFoundException,
             EOFException, UnsupportedEncodingException, IOException,
             SQLException {
-        showHelp();
-
-        ConsoleReader reader = new ConsoleReader();
-        reader.setHistoryEnabled(true);
-        String[] splits = reader.readLine("connect>").split(" ");
-        if (splits.length != 6) {
+        if (args.length != 6) {
             showHelp();
             return;
         }
 
         int i = -1;
-        String dbtype = splits[++i];
-        String host = splits[++i];
-        int port = Integer.parseInt(splits[++i]);
-        String database = splits[++i];
-        String username = splits[++i];
-        String password = splits[++i];
+        String dbtype = args[++i];
+        String host = args[++i];
+        int port = Integer.parseInt(args[++i]);
+        String database = args[++i];
+        String username = args[++i];
+        String password = args[++i];
+
+        ConsoleReader reader = new ConsoleReader();
+        reader.setHistoryEnabled(true);
+        FileHistory history = initHistory(HISTORY_FILE);
+        if (null != history) {
+            reader.setHistory(history);
+        }
 
         SQLClient client = makeClient(dbtype);
         Connection conn = client.getConnection(host, port, database, username,
                 password);
         try {
-            reader.getHistory().clear();
-
             StringBuilder buffer = new StringBuilder();
             while (true) {
                 String line = null;
@@ -65,8 +70,7 @@ public class SQLClientConsole {
                 String sql = buffer.toString();
                 buffer.setLength(0);
 
-                if ("quit".equalsIgnoreCase(sql) || "bye".equalsIgnoreCase(sql)
-                        || "exit".equalsIgnoreCase(sql)) {
+                if (isExitCommand(sql)) {
                     exit();
                     break;
                 }
@@ -89,6 +93,9 @@ public class SQLClientConsole {
                                     + sql);
                     e.printStackTrace();
                 }
+                if (null != history) {
+                    history.flush();
+                }
             }
         } finally {
             closeConnection(conn);
@@ -96,12 +103,10 @@ public class SQLClientConsole {
     }
 
     private static void showHelp() {
-        System.out.println("usage:");
-        System.out.println("\t dbtype host port database username password");
-        System.out.println("example:");
-        System.out
-                .println("\t mysql 127.0.0.1 3306 mydatabase myusername mypassword");
-        System.out.println("dbtypes:");
+        System.out.println("usage: " + SQLClientConsole.class.getSimpleName()
+                + "dbtype host port database username [password]");
+        System.out.println("example: " + SQLClientConsole.class.getSimpleName()
+                + " mysql 127.0.0.1 3306 mydatabase myusername mypassword");
         StringBuilder dbtypes = new StringBuilder();
         for (String dbtype: CLIENT_MAP.keySet()) {
             if (dbtypes.length() != 0) {
@@ -109,8 +114,7 @@ public class SQLClientConsole {
             }
             dbtypes.append(dbtype);
         }
-
-        System.out.println("\t " + dbtypes);
+        System.out.println("supported dbtypes: " + dbtypes);
     }
 
     private static Map<String, SQLClient> loadClientMap() throws IOException,
@@ -140,6 +144,29 @@ public class SQLClientConsole {
         }
     }
 
+    private static FileHistory initHistory(String historyFilePath)
+            throws IOException {
+        File historyFile = new File(historyFilePath);
+        if (!historyFile.exists()) {
+            File parent = historyFile.getAbsoluteFile().getParentFile();
+            if (null == parent) {
+                return null;
+            }
+            if (!parent.exists() && !parent.mkdirs()) {
+                return null;
+            }
+            if (!historyFile.createNewFile()) {
+                return null;
+            }
+        }
+        if (historyFile.isDirectory() || !historyFile.canRead()
+                || !historyFile.canWrite()) {
+            return null;
+        }
+
+        return new FileHistory(historyFile);
+    }
+
     private static SQLClient getSQLClient(String dbtype) {
         return CLIENT_MAP.get(dbtype);
     }
@@ -154,6 +181,16 @@ public class SQLClientConsole {
             client.loadDriver();
         }
         return client;
+    }
+
+    private static final Pattern EXIT_COMMAND = Pattern.compile(
+            "\\s*(quit|exit|bye)[;\\s]*", Pattern.CASE_INSENSITIVE);
+
+    private static boolean isExitCommand(String command) {
+        if (null == command) {
+            return false;
+        }
+        return EXIT_COMMAND.matcher(command).matches();
     }
 
     private static void exit() {
